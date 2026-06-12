@@ -28,6 +28,7 @@
   - [10. n8n](#10-n8n--workflow-automation)
   - [11. Home Assistant](#11-home-assistant--smart-home)
   - [12. Dashy](#12-dashy--dashboard)
+  - [13. Tailscale](#13-tailscale--private-mesh-vpn)
 - [Security Notes](#-security-notes)
 
 ---
@@ -41,6 +42,8 @@ flowchart TB
     subgraph INTERNET["🌍 Internet"]
         USER["External User"]
         CF["☁️ Cloudflare<br/>(DNS + Tunnel Edge)"]
+        TSUSER["Own Device on the go<br/>(Phone / Laptop)"]
+        TSNET["🔗 Tailscale<br/>(Coordination + DERP)"]
     end
 
     subgraph LAN["🏠 Home Network"]
@@ -52,6 +55,7 @@ flowchart TB
             CFD["cloudflared<br/>Tunnel Connector"]
             NPM["Nginx Proxy Manager<br/>:80 :443 — Reverse Proxy + SSL"]
             PIHOLE["Pi-hole<br/>:53 — DNS + Ad Blocking"]
+            TS["Tailscale (native)<br/>Subnet Router → LAN"]
         end
 
         subgraph AUTH["Identity"]
@@ -97,6 +101,9 @@ flowchart TB
     USER -->|HTTPS| CF
     CF -->|"Encrypted Tunnel<br/>(no open ports!)"| CFD
     CFD --> NPM
+    TSUSER -->|WireGuard| TSNET
+    TSNET -->|"Encrypted Mesh<br/>(no open ports!)"| TS
+    TS -.->|"full LAN access<br/>incl. admin UIs"| NPM
     CLIENT -->|DNS Queries| PIHOLE
     CLIENT -->|HTTPS via local DNS| NPM
 
@@ -136,11 +143,14 @@ flowchart TB
     style CF fill:#f48120,color:#fff
     style PIHOLE fill:#96060c,color:#fff
     style AUTHENTIK fill:#fd4b2d,color:#fff
+    style TS fill:#1f1f1f,color:#fff
+    style TSNET fill:#1f1f1f,color:#fff
 ```
 
 **Key design decisions:**
 
-- 🔐 **Zero open ports** — external access goes exclusively through a Cloudflare Tunnel. The router has no port forwarding at all.
+- 🔐 **Zero open ports** — external access goes exclusively through a Cloudflare Tunnel (public services) and Tailscale (private admin access). The router has no port forwarding at all.
+- 🧭 **Two access tiers** — public apps (Jellyfin, Nextcloud, …) via Cloudflare Tunnel; admin UIs (Portainer, NPM, Prometheus, …) **only** via LAN or Tailscale.
 - 🛡 **VPN-isolated torrenting** — qBittorrent shares Gluetun's network namespace (`network_mode: service:gluetun`). If the VPN drops, qBittorrent has **no** internet access (built-in kill switch).
 - 🔑 **Single Sign-On** — Authentik provides OAuth2/OIDC for supported apps (e.g. Grafana) and 2FA in front of everything else.
 - 📊 **Full observability** — every container and the host itself is scraped by Prometheus; alerts land in Telegram within minutes.
@@ -154,6 +164,7 @@ flowchart TB
 | **Nginx Proxy Manager** | Reverse proxy + Let's Encrypt SSL | 80 / 443 / 81 | `http://<pi-ip>:81` |
 | **Pi-hole** | Network-wide DNS ad blocking | 53 / 8081 | `http://<pi-ip>:8081/admin` |
 | **Cloudflared** | Secure tunnel for external access | — | (Cloudflare Dashboard) |
+| **Tailscale** | Mesh VPN + LAN subnet router (native, no Docker) | — | (Tailscale Admin Console) |
 | **Authentik** | SSO, OAuth2, 2FA | 9001 | `http://<pi-ip>:9001` |
 | **Portainer** | Docker management UI | 9000 / 9443 | `http://<pi-ip>:9000` |
 | **Jellyfin** | Media streaming server | 8096 | `http://<pi-ip>:8096` |
@@ -377,12 +388,27 @@ http:
 
 The config lives in `dashy/conf.yml` — edit it, replace `yourdomain.com` with your domain, restart the container. Built-in status checks ping every service and show a green/red dot. Set it as your browser start page. 🏁
 
+### 13. Tailscale — Private Mesh VPN
+
+The only service that runs **natively on the host** instead of Docker — as a subnet router it needs the host network stack directly. Full guide in [`tailscale/README.md`](tailscale/README.md); the short version:
+
+```bash
+# Install + enable IP forwarding, then:
+sudo tailscale up --advertise-routes=192.168.178.0/24   # your LAN subnet
+```
+
+1. Authenticate via the printed login URL (no auth key ever touches the disk)
+2. [Admin console](https://login.tailscale.com/admin/machines) → the Pi → **Edit route settings** → approve the subnet route → disable key expiry
+3. Install the app on phone/laptop → you can now reach **every** LAN device from anywhere — this is the *only* way the admin UIs (Portainer, NPM, Prometheus, …) are reachable from outside
+4. Bonus: add the Pi's Tailscale IP as DNS server in the admin console → Pi-hole ad blocking everywhere you go
+
 ---
 
 ## 🔐 Security Notes
 
 - ✅ **No secrets in this repo** — every credential lives in a gitignored `.env`; each service ships a documented `.env.example`
-- ✅ **No open router ports** — external traffic only via Cloudflare Tunnel
+- ✅ **No open router ports** — public traffic via Cloudflare Tunnel, private/admin traffic via Tailscale; both connect outbound only
+- ✅ **Admin UIs never public** — Portainer, NPM, Prometheus & co. are reachable exclusively over LAN or Tailscale
 - ✅ **Kill-switch torrenting** — qBittorrent can physically only reach the internet through the VPN container
 - ✅ **SSO + 2FA** via Authentik in front of sensitive UIs
 - ✅ **Alerting** — if anything dies, Telegram knows before you do
