@@ -1,0 +1,322 @@
+groups:
+  - name: host
+    rules:
+      - alert: HostInstanceDown
+        expr: up{job=~"node_exporter|cadvisor|prometheus"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Target down: {{ $labels.job }} ({{ $labels.instance }})"
+          description: "Prometheus target is unreachable for >2 minutes."
+
+      - alert: HostHighCPU
+        expr: 100 - (avg by(instance)(irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 90
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU on {{ $labels.instance }}"
+          description: "CPU > 90% for 5 minutes."
+
+      - alert: HostHighLoad
+        expr: (node_load1 / count by(instance)(node_cpu_seconds_total{mode="idle"})) > 2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High load on {{ $labels.instance }}"
+          description: "Load per core > 2 for 10 minutes."
+
+      - alert: HostHighMemory
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High RAM on {{ $labels.instance }}"
+          description: "RAM > 90% for 5 minutes."
+
+      - alert: HostSwapInUse
+        expr: (1 - (node_memory_SwapFree_bytes / node_memory_SwapTotal_bytes)) * 100 > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Swap usage high on {{ $labels.instance }}"
+          description: "Swap > 80% for 10 minutes."
+
+      # Disk nur für /, /mnt/ssd, /mnt/hdd
+      - alert: HostDiskSpaceLow
+        expr: |
+          (1 - (node_filesystem_avail_bytes{mountpoint=~"/|/mnt/ssd|/mnt/hdd", fstype!~"tmpfs|overlay"} 
+          / node_filesystem_size_bytes{mountpoint=~"/|/mnt/ssd|/mnt/hdd", fstype!~"tmpfs|overlay"})) * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low disk space ({{ $labels.mountpoint }}) on {{ $labels.instance }}"
+          description: "Disk usage > 85% for 10 minutes on {{ $labels.mountpoint }}."
+
+      - alert: HostDiskSpaceCritical
+        expr: |
+          (1 - (node_filesystem_avail_bytes{mountpoint=~"/|/mnt/ssd|/mnt/hdd", fstype!~"tmpfs|overlay"} 
+          / node_filesystem_size_bytes{mountpoint=~"/|/mnt/ssd|/mnt/hdd", fstype!~"tmpfs|overlay"})) * 100 > 95
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Disk space CRITICAL ({{ $labels.mountpoint }}) on {{ $labels.instance }}"
+          description: "Disk usage > 95% for 5 minutes on {{ $labels.mountpoint }}."
+
+      - alert: HostFilesystemReadOnly
+        expr: node_filesystem_readonly{mountpoint=~"/|/mnt/ssd|/mnt/hdd"} == 1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Filesystem is read-only ({{ $labels.mountpoint }})"
+          description: "Mount {{ $labels.mountpoint }} is read-only for >2 minutes."
+
+  - name: temperature
+    rules:
+      # Raspberry Pi Temperatur (funktioniert je nach node_exporter metric: thermal_zone oder hwmon)
+      - alert: HostTemperatureHigh
+        expr: |
+          (
+            (max by(instance) (node_thermal_zone_temp{type=~".*cpu.*|.*soc.*|.*thermal.*"})) > 75
+          )
+          OR
+          (
+            (max by(instance) (node_hwmon_temp_celsius)) > 75
+          )
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High temperature on {{ $labels.instance }}"
+          description: "Temperature > 75°C for 5 minutes."
+
+      - alert: HostTemperatureCritical
+        expr: |
+          (
+            (max by(instance) (node_thermal_zone_temp{type=~".*cpu.*|.*soc.*|.*thermal.*"})) > 82
+          )
+          OR
+          (
+            (max by(instance) (node_hwmon_temp_celsius)) > 82
+          )
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "CRITICAL temperature on {{ $labels.instance }}"
+          description: "Temperature > 82°C for 2 minutes."
+
+  - name: docker-important-containers
+    rules:
+      # Container fehlen seit >2 Minuten (gestoppt/crash) -> über absent_over_time()
+      - alert: ContainerMissing_nginx_proxy_manager
+        expr: absent_over_time(container_last_seen{name="nginx-proxy-manager"}[2m]) == 1
+        labels: { severity: critical }
+        annotations:
+          summary: "Container fehlt: nginx-proxy-manager"
+          description: "Reverse proxy ist weg -> Domains down."
+
+      - alert: ContainerMissing_portainer
+        expr: absent_over_time(container_last_seen{name="portainer"}[2m]) == 1
+        labels: { severity: warning }
+        annotations:
+          summary: "Container fehlt: portainer"
+          description: "Docker UI ist weg."
+
+      - alert: ContainerMissing_pihole
+        expr: absent_over_time(container_last_seen{name="pihole"}[2m]) == 1
+        labels: { severity: critical }
+        annotations:
+          summary: "Container fehlt: pihole"
+          description: "DNS/Adblock ist weg."
+
+      - alert: ContainerMissing_authentik_server
+        expr: absent_over_time(container_last_seen{name="authentik-server"}[2m]) == 1
+        labels: { severity: warning }
+        annotations:
+          summary: "Container fehlt: authentik-server"
+          description: "SSO/2FA ist weg."
+
+      - alert: ContainerMissing_grafana
+        expr: absent_over_time(container_last_seen{name="grafana"}[2m]) == 1
+        labels: { severity: warning }
+        annotations:
+          summary: "Container fehlt: grafana"
+          description: "Dashboards nicht erreichbar."
+
+      - alert: ContainerMissing_prometheus
+        expr: absent_over_time(container_last_seen{name="prometheus"}[2m]) == 1
+        labels: { severity: critical }
+        annotations:
+          summary: "Container fehlt: prometheus"
+          description: "Monitoring/Alert-Auswertung steht."
+
+      - alert: ContainerMissing_alertmanager
+        expr: absent_over_time(container_last_seen{name="alertmanager"}[2m]) == 1
+        labels: { severity: critical }
+        annotations:
+          summary: "Container fehlt: alertmanager"
+          description: "Keine Benachrichtigungen mehr."
+
+      - alert: ContainerMissing_cadvisor
+        expr: absent_over_time(container_last_seen{name="cadvisor"}[2m]) == 1
+        labels: { severity: warning }
+        annotations:
+          summary: "Container fehlt: cadvisor"
+          description: "Container-Metriken fehlen."
+
+      - alert: ContainerMissing_node_exporter
+        expr: absent_over_time(container_last_seen{name="node_exporter"}[2m]) == 1
+        labels: { severity: critical }
+        annotations:
+          summary: "Container fehlt: node_exporter"
+          description: "Host-Metriken fehlen."
+
+
+      - alert: ContainerMissing_cloudflared
+        expr: absent_over_time(container_last_seen{name="cloudflared"}[2m]) == 1
+        labels: { severity: warning }
+        annotations:
+          summary: "Container fehlt: cloudflared"
+          description: "Tunnel/Externer Zugriff evtl. weg."
+
+      - alert: ContainerMissing_n8n
+        expr: absent_over_time(container_last_seen{name="n8n"}[2m]) == 1
+        labels: { severity: warning }
+        annotations:
+          summary: "Container fehlt: n8n"
+          description: "Automationen laufen nicht."
+- alert: ContainerMissing_gluetun
+        expr: absent_over_time(container_last_seen{name="gluetun"}[2m]) == 1
+        labels: { severity: critical }
+        annotations:
+          summary: "Container fehlt: gluetun"
+          description: "VPN ist weg -> kein sicheres Torrenting mehr."
+
+      - alert: ContainerMissing_qbittorrent
+        expr: absent_over_time(container_last_seen{name="qbittorrent"}[2m]) == 1
+        labels: { severity: warning }
+        annotations:
+          summary: "Container fehlt: qbittorrent"
+          description: "Download-Client ist weg."
+
+      - alert: ContainerMissing_sonarr
+        expr: absent_over_time(container_last_seen{name="sonarr"}[2m]) == 1
+        labels: { severity: warning }
+        annotations:
+          summary: "Container fehlt: sonarr"
+          description: "Serien-Automation ist weg."
+
+      - alert: ContainerMissing_radarr
+        expr: absent_over_time(container_last_seen{name="radarr"}[2m]) == 1
+        labels: { severity: warning }
+        annotations:
+          summary: "Container fehlt: radarr"
+          description: "Film-Automation ist weg."
+
+      - alert: ContainerMissing_prowlarr
+        expr: absent_over_time(container_last_seen{name="prowlarr"}[2m]) == 1
+        labels: { severity: warning }
+        annotations:
+          summary: "Container fehlt: prowlarr"
+          description: "Indexer-Manager ist weg."
+
+      - alert: ContainerMissing_jellyfin
+        expr: absent_over_time(container_last_seen{name="jellyfin"}[2m]) == 1
+        labels: { severity: critical }
+        annotations:
+          summary: "Container fehlt: jellyfin"
+          description: "Media-Server ist weg."
+
+      - alert: ContainerMissing_jellyseerr
+        expr: absent_over_time(container_last_seen{name="jellyseerr"}[2m]) == 1
+        labels: { severity: warning }
+        annotations:
+          summary: "Container fehlt: jellyseerr"
+          description: "Media-Request-System ist weg."
+
+      - alert: ContainerMissing_flaresolverr
+        expr: absent_over_time(container_last_seen{name="flaresolverr"}[2m]) == 1
+        labels: { severity: warning }
+        annotations:
+          summary: "Container fehlt: flaresolverr"
+          description: "Cloudflare-Bypass für Indexer ist weg."
+
+      - alert: ContainerMissing_homeassistant
+        expr: absent_over_time(container_last_seen{name="homeassistant"}[2m]) == 1
+        labels: { severity: critical }
+        annotations:
+          summary: "Container fehlt: homeassistant"
+          description: "Home Assistant ist weg."
+
+      - alert: ContainerMissing_immich
+        expr: absent_over_time(container_last_seen{name="immich_server"}[2m]) == 1
+        labels: { severity: warning }
+        annotations:
+          summary: "Container fehlt: immich_server"
+          description: "Foto-Backup ist weg."
+
+      # Nextcloud AIO Kern
+      - alert: ContainerMissing_nextcloud_aio_mastercontainer
+        expr: absent_over_time(container_last_seen{name="nextcloud-aio-mastercontainer"}[2m]) == 1
+        labels: { severity: critical }
+        annotations:
+          summary: "Container fehlt: nextcloud-aio-mastercontainer"
+          description: "Nextcloud AIO Master ist weg."
+
+      - alert: ContainerMissing_nextcloud_aio_apache
+        expr: absent_over_time(container_last_seen{name="nextcloud-aio-apache"}[2m]) == 1
+        labels: { severity: critical }
+        annotations:
+          summary: "Container fehlt: nextcloud-aio-apache"
+          description: "Nextcloud Web-Frontend (Apache) ist weg."
+
+      - alert: ContainerMissing_nextcloud_aio_nextcloud
+        expr: absent_over_time(container_last_seen{name="nextcloud-aio-nextcloud"}[2m]) == 1
+        labels: { severity: critical }
+        annotations:
+          summary: "Container fehlt: nextcloud-aio-nextcloud"
+          description: "Nextcloud App-Container ist weg."
+
+      - alert: ContainerMissing_nextcloud_aio_database
+        expr: absent_over_time(container_last_seen{name="nextcloud-aio-database"}[2m]) == 1
+        labels: { severity: critical }
+        annotations:
+          summary: "Container fehlt: nextcloud-aio-database"
+          description: "Nextcloud Datenbank ist weg."
+
+      - alert: ContainerMissing_nextcloud_aio_redis
+        expr: absent_over_time(container_last_seen{name="nextcloud-aio-redis"}[2m]) == 1
+        labels: { severity: warning }
+        annotations:
+          summary: "Container fehlt: nextcloud-aio-redis"
+          description: "Caching/Locking betroffen."
+
+  - name: docker-behavior
+    rules:
+      # Restart-loop: startet oft neu (falls Metric vorhanden)
+      - alert: DockerContainerRestartLoop
+        expr: changes(container_start_time_seconds{container!="", container!="POD"}[15m]) >= 3
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Restart loop: {{ $labels.name }}"
+          description: "Container restarted 3+ times in last 15m."
+
+      # OOM Kills (falls Metric vorhanden)
+      - alert: DockerContainerOOMKilled
+        expr: increase(container_oom_events_total{container!="", container!="POD"}[10m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "OOMKilled: {{ $labels.name }}"
+          description: "Container had OOM events in last 10m."
