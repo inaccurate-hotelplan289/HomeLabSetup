@@ -1,0 +1,96 @@
+pageInfo:
+  title: Home
+  description: Pi-Server Dashboard (yourdomain.com)
+  navLinks:
+    - title: Grafana
+      path: https://monitor.yourdomain.com
+    - title: Alertmanager
+      path: https://alerts.yourdomain.com
+    - title: Portainer
+      path: https://pm.yourdomain.com
+    - title: NPM
+      path: https://npm.yourdomain.com
+
+appConfig:
+  theme: one-dark
+  language: de
+  layout: auto
+  iconSize: medium
+  openingMethod: newtab
+  statusCheck: true
+  statusCheckInterval: 60
+  hideComponents:
+    hideFooter: true
+
+sections:
+  - name: Monitoring
+    icon: fas fa-chart-line
+    items:
+      - title: Grafana
+        description: Dashboards & Metriken
+        icon: hl-grafana
+        url: https://monitor.yourdomain.com
+
+      - title: Prometheus
+        description: Targets / Rules / Queries
+        icon: hl-prometheus
+        url: https://prom.yourdomain.com
+
+      - title: Alertmanager
+        description: Alerts / Silences
+        icon: fas fa-bell
+        url: https://alerts.yourdomain.com
+
+      - title: cAdvisor
+        description: Container-Metriken
+        icon: fas fa-boxes-stacked
+        url: https://cadvisor.yourdomain.com
+
+  - name: Core Services
+    icon: fas fa-server
+    items:
+      - title: Nginx Proxy Manager
+        description: Reverse Proxy / SSL
+        icon: hl-nginxproxymanager
+        url: https://npm.yourdomain.com
+
+      - title: Authentik
+        description: SSO / 2FA
+        icon: fas fa-shield-halved
+        url: https://auth.yourdomain.com
+
+      - title: Portainer
+        description: Docker Verwaltung
+        icon: hl-portainer
+        url: https://pm.yourdomain.com
+
+      - title: Pi-hole
+        description: DNS / AdBlock
+        icon: hl-pihole
+        url: https://pihole.yourdomain.com
+
+  - name: Apps
+    icon: fas fa-cubes
+    items:
+      - title: Nextcloud
+        description: Private Cloud
+        icon: hl-nextcloud
+        url: https://cloud.yourdomain.com
+
+      - title: n8n
+        description: Automationen / Workflows
+        icon: hl-n8n
+        url: https://n8n.yourdomain.com
+
+  - name: Quick Admin
+    icon: fas fa-bolt
+    items:
+      - title: Pi (LAN)
+        description: 192.168.178.85
+        icon: fas fa-network-wired
+        url: http://192.168.178.85
+
+      - title: Dashy (LAN)
+        description: Direktzugriff
+        icon: fas fa-house
+        url: http://192.168.178.85:4000
